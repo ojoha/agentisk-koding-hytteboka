@@ -1,14 +1,17 @@
 // What the server answers. `createApp` gives the function `node:http` calls for each request.
 //
-// There is no login: who someone is, is the name they typed, kept in the cookie `navn`.
+// Who someone is: the name they gave with its PIN, kept in the cookie `navn`, signed by the server.
+// The office manager is whoever gave the manager's code, kept in the cookie `kontorsjef`.
 // A change is a posted form. One that went well is answered by sending the browser to the page
 // that shows it; one that was refused, by that page again with why.
 
 import { readFile } from 'node:fs/promises';
 import {
-  book, calendar, cancel, describe, drawWinner, enter, markDraw, readName, unmarkDraw, withdraw,
+  book, calendar, cancel, claimName, describe, drawWinner, enter, isKnown, markDraw, nameKey, people, readName,
+  resetPin, standingBehind, unmarkDraw, withdraw,
 } from './cabin.js';
-import { calendarPage, drawPage, managerPage, messagePage } from './pages.js';
+import { same, sign, unsign } from './identity.js';
+import { calendarPage, drawPage, managerLoginPage, managerPage, messagePage } from './pages.js';
 import { currentWeek, isWeekId } from './weeks.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -32,12 +35,47 @@ const HEADERS = {
 
 const FORM_LIMIT = 10_000;
 
-export function createApp({ store, now = () => new Date() }) {
+// After this many wrong PINs for a name, or wrong codes, it is closed for a while.
+const TRIES = 5;
+const CLOSED_FOR = 15 * 60 * 1000;
+
+/**
+ * `secret` signs the cookies. `managerCode` is what the office manager types to get in.
+ */
+export function createApp({ store, now = () => new Date(), secret, managerCode }) {
+  if (!secret || !managerCode) throw new Error('createApp needs a secret and a code for the office manager');
   const today = () => currentWeek(now());
+  const failures = new Map();
+
+  const isClosed = (key) => (failures.get(key)?.until ?? 0) > now().getTime();
+  const failed = (key) => {
+    const count = (failures.get(key)?.count ?? 0) + 1;
+    failures.set(key, count >= TRIES ? { count: 0, until: now().getTime() + CLOSED_FOR } : { count, until: 0 });
+  };
+
+  // What is signed starts with the cookie's name, so one cookie's value is never believed as another's.
+  const remember = (wanted, value, maxAge) =>
+    `${wanted}=${encodeURIComponent(sign(secret, `${wanted}:${value}`))}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax`;
+  const cookie = (request, wanted) => {
+    const match = new RegExp(`(?:^|;\\s*)${wanted}=([^;]*)`).exec(request.headers.cookie ?? '');
+    try {
+      const value = match ? unsign(secret, decodeURIComponent(match[1])) : null;
+      return value?.startsWith(`${wanted}:`) ? value.slice(wanted.length + 1) : null;
+    } catch {
+      return null;
+    }
+  };
+  // A name counts only while it is in use: when the manager frees it, old cookies with it stop working.
+  const nameOf = (request) => {
+    const name = readName(cookie(request, 'navn') ?? '');
+    return isKnown(store.state, name) ? name : '';
+  };
+  const isManager = (request) => cookie(request, 'kontorsjef') === 'ja';
 
   async function answer(request, response) {
     const { pathname } = new URL(request.url, 'http://hytteboka');
     const name = nameOf(request);
+    const manager = isManager(request);
     let match;
 
     const send = (status, body, type = HTML, more = {}) => {
@@ -55,10 +93,12 @@ export function createApp({ store, now = () => new Date() }) {
       send(status, calendarPage({ weeks: calendar(store.state, today()), today: today(), name, ...more }));
 
     const showManager = (status = 200, message) => {
+      if (!manager) return send(status, managerLoginPage({ name, message }));
       const weeks = calendar(store.state, today());
       send(status, managerPage({
         draws: weeks.filter((entry) => entry.draw),
         freeWeeks: weeks.filter((entry) => !entry.draw && !entry.booking).map((entry) => entry.week),
+        people: people(store.state),
         name,
         message,
       }));
@@ -67,7 +107,8 @@ export function createApp({ store, now = () => new Date() }) {
     const showDraw = (week, status = 200, message) => {
       const entry = isWeekId(week) ? describe(store.state, week) : null;
       if (!entry?.draw) return notFound();
-      send(status, drawPage({ ...entry, message }));
+      const behind = standingBehind(store.state, week, now().toISOString());
+      send(status, drawPage({ ...entry, behind, canDraw: manager, message }));
     };
 
     if (request.method === 'GET') {
@@ -97,16 +138,45 @@ export function createApp({ store, now = () => new Date() }) {
       const typed = form.get('navn') ?? '';
       const forget = 'navn=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax';
       if (typed.trim() === '') return goTo('/', { 'Set-Cookie': forget });
-      const newName = readName(typed);
-      if (!newName) return showCalendar(400, { message: 'Navnet kan være på 60 tegn.', typedName: typed });
-      const remember = `navn=${encodeURIComponent(newName)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax`;
-      return goTo('/', { 'Set-Cookie': remember });
+      if (!readName(typed)) return showCalendar(400, { message: 'Navnet kan være på 60 tegn.', typedName: typed });
+
+      const key = `navn:${nameKey(typed)}`;
+      if (isClosed(key)) {
+        return showCalendar(429, { message: 'For mange feil PIN-er. Prøv igjen om 15 minutter.', typedName: typed });
+      }
+      const result = store.change(claimName, { name: typed, pin: form.get('pin') ?? '' });
+      if (!result.ok) {
+        if (result.status === 403) failed(key);
+        return showCalendar(result.status, { message: result.message, typedName: typed });
+      }
+      failures.delete(key);
+      return goTo('/', { 'Set-Cookie': remember('navn', result.name, 31536000) });
     }
 
     if ((match = /^\/uker\/([^/]+)\/(book|avbestill|meld-pa|meld-av)$/.exec(pathname))) {
       const [, week, action] = match;
       const result = store.change(WEEK_RULES[action], { ...wish, week, name });
       return result.ok ? goTo(`/#${week}`) : showCalendar(result.status, { message: result.message });
+    }
+
+    if (pathname === '/kontorsjef/inn') {
+      const key = 'kontorsjef';
+      if (isClosed(key)) return showManager(429, 'For mange feil koder. Prøv igjen om 15 minutter.');
+      if (!same(form.get('kode') ?? '', managerCode)) {
+        failed(key);
+        return showManager(403, 'Feil kode.');
+      }
+      failures.delete(key);
+      // Half a day, so a screen left open in the meeting room does not stay the manager's.
+      return goTo('/kontorsjef', { 'Set-Cookie': remember('kontorsjef', 'ja', 43200) });
+    }
+
+    // Drawing, and everything under /kontorsjef, is the office manager's.
+    const wantsData = request.headers.accept?.includes('application/json');
+    if (!manager && /^\/(kontorsjef|trekning)\//.test(pathname)) {
+      const message = 'Det er bare kontorsjefen som kan gjøre det.';
+      if (wantsData) return send(403, JSON.stringify({ message }), JSON_TYPE);
+      return showManager(403, message);
     }
 
     if ((match = /^\/trekning\/([^/]+)\/trekk$/.exec(pathname))) {
@@ -116,11 +186,24 @@ export function createApp({ store, now = () => new Date() }) {
         : { ok: false, status: 400, message: 'Kryss av for at alle som skal se på, er her.' };
 
       // The draw page's script asks for the answer as data, to show it its own way.
-      if (request.headers.accept?.includes('application/json')) {
-        const body = result.ok ? { winner: result.winner, entries: result.entries } : { message: result.message };
+      if (wantsData) {
+        const body = result.ok
+          ? { winner: result.winner, entries: result.entries, behind: result.behind }
+          : { message: result.message };
         return send(result.ok ? 200 : result.status, JSON.stringify(body), JSON_TYPE);
       }
       return result.ok ? goTo(`/trekning/${week}`) : showDraw(week, result.status, result.message);
+    }
+
+    if ((match = /^\/kontorsjef\/personer\/([^/]+)\/nullstill$/.exec(pathname))) {
+      let key;
+      try {
+        key = decodeURIComponent(match[1]);
+      } catch {
+        return notFound();
+      }
+      const result = store.change(resetPin, { name: key });
+      return result.ok ? goTo('/kontorsjef') : showManager(result.status, result.message);
     }
 
     if (pathname === '/kontorsjef/trekningsuker') {
@@ -143,16 +226,6 @@ export function createApp({ store, now = () => new Date() }) {
       response.writeHead(500, { ...HEADERS, 'Content-Type': HTML });
       response.end(messagePage({ title: 'Noe gikk galt', text: 'Det er vår feil, ikke din. Prøv igjen om litt.' }));
     });
-}
-
-function nameOf(request) {
-  const match = /(?:^|;\s*)navn=([^;]*)/.exec(request.headers.cookie ?? '');
-  if (!match) return '';
-  try {
-    return readName(decodeURIComponent(match[1]));
-  } catch {
-    return '';
-  }
 }
 
 /** The fields of a posted form, or null when more was sent than a form here ever holds. */

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
-  book, calendar, cancel, drawWinner, emptyState, enter, firstState, HORIZON, markDraw, readName, sameName,
-  unmarkDraw, withdraw,
+  book, calendar, cancel, claimName, drawWinner, emptyState, enter, firstState, HORIZON, isKnown, markDraw, people,
+  readName, resetPin, sameName, standingBehind, unmarkDraw, withdraw,
 } from '../src/cabin.js';
+import { checkPin, hashPin, isPin, sign, unsign } from '../src/identity.js';
 
 // The week the tests happen in: 12 to 18 October 2026.
 const TODAY = '2026-W42';
@@ -54,7 +55,24 @@ describe('booking a week', () => {
   test('the week we are in can be booked, and the last of the 52', () => {
     const state = emptyState();
     assert.equal(book(state, as('Ola Nordmann', TODAY)).ok, true);
-    assert.equal(book(state, as('Ola Nordmann', '2027-W40')).ok, true);
+    assert.equal(book(state, as('Kari Hansen', '2027-W40')).ok, true);
+  });
+
+  test('one person has one ordinary week ahead at a time', () => {
+    const state = emptyState();
+    book(state, as('Ola Nordmann', AUTUMN));
+    refused(state, book, as('ola nordmann', '2026-W46'), /Du har allerede uke 45\. Du kan ha én vanlig uke om gangen\./);
+    assert.equal(book(state, as('Kari Hansen', '2026-W46')).ok, true);
+
+    assert.equal(cancel(state, as('Ola Nordmann', AUTUMN)).ok, true);
+    assert.equal(book(state, as('Ola Nordmann', '2026-W47')).ok, true, 'a week given up frees the place');
+  });
+
+  test('a week that is over, or won in a draw, does not count against the quota', () => {
+    const state = bookWithEaster('Ola Nordmann');
+    state.bookings['2026-W41'] = { name: 'Ola Nordmann', at: NOW };
+    drawWinner(state, { week: EASTER, today: TODAY, now: NOW, pick: () => 0 });
+    assert.equal(book(state, as('Ola Nordmann', AUTUMN)).ok, true);
   });
 
   test('a week that is over, too far ahead or not a week cannot be booked', () => {
@@ -149,7 +167,7 @@ describe('drawing the winner', () => {
       return 1;
     });
 
-    assert.deepEqual(answer, { ok: true, winner: 1, entries: people });
+    assert.deepEqual(answer, { ok: true, winner: 1, entries: people, behind: [] });
     assert.deepEqual(asked, [3], 'one pick among the three tickets');
     assert.deepEqual(state.bookings[EASTER], { name: 'Kari Hansen', at: NOW });
     assert.equal(state.draws[EASTER].entries.length, 3, 'the tickets stay, to show who was in the draw');
@@ -211,8 +229,143 @@ describe('drawing the winner', () => {
     assert.deepEqual(state.draws[EASTER].entries.map((entry) => entry.name), ['Kari Hansen', 'Per Olsen']);
 
     assert.equal(enter(state, as('Nina Berg', EASTER)).ok, true, 'the draw is open again');
-    assert.deepEqual(draw(state, () => 2), { ok: true, winner: 2, entries: ['Kari Hansen', 'Per Olsen', 'Nina Berg'] });
+    assert.deepEqual(draw(state, () => 2), {
+      ok: true, winner: 2, entries: ['Kari Hansen', 'Per Olsen', 'Nina Berg'], behind: [],
+    });
     assert.equal(state.bookings[EASTER].name, 'Nina Berg');
+  });
+});
+
+describe('someone who won in the last 12 months', () => {
+  const WINTER = '2027-W08';
+  const people = ['Ola Nordmann', 'Kari Hansen', 'Per Olsen'];
+
+  /** A book where `winner` won the winter break at `at`, and everyone has entered Easter. */
+  function afterWinter(winner, at = NOW) {
+    const state = bookWithEaster(...people);
+    state.draws[WINTER] = { label: 'Vinterferie', entries: [{ name: winner, at }] };
+    state.bookings[WINTER] = { name: winner, at };
+    return state;
+  }
+
+  test('stands behind: the pick is among the others only', () => {
+    const state = afterWinter('ola nordmann');
+    const asked = [];
+    const answer = drawWinner(state, {
+      week: EASTER, today: TODAY, now: NOW,
+      pick: (count) => {
+        asked.push(count);
+        return 0;
+      },
+    });
+    assert.deepEqual(asked, [2]);
+    assert.deepEqual(answer, { ok: true, winner: 1, entries: people, behind: [0] });
+    assert.equal(state.bookings[EASTER].name, 'Kari Hansen');
+  });
+
+  test('never wins while someone else has entered, whatever is picked', () => {
+    for (const index of [0, 1]) {
+      const state = afterWinter('Ola Nordmann');
+      drawWinner(state, { week: EASTER, today: TODAY, now: NOW, pick: () => index });
+      assert.notEqual(state.bookings[EASTER].name, 'Ola Nordmann');
+    }
+  });
+
+  test('wins when nobody else has entered, and then nobody stands behind', () => {
+    const state = bookWithEaster('Ola Nordmann');
+    state.draws['2027-W08'] = { label: '', entries: [] };
+    state.bookings['2027-W08'] = { name: 'Ola Nordmann', at: NOW };
+    assert.deepEqual(standingBehind(state, EASTER, NOW), []);
+    assert.deepEqual(drawWinner(state, { week: EASTER, today: TODAY, now: NOW }), {
+      ok: true, winner: 0, entries: ['Ola Nordmann'], behind: [],
+    });
+  });
+
+  test('stands like everyone else once 12 months have passed', () => {
+    const state = afterWinter('Ola Nordmann', '2025-10-14T08:00:00.000Z');
+    assert.deepEqual(standingBehind(state, EASTER, NOW), []);
+    const asked = [];
+    drawWinner(state, {
+      week: EASTER, today: TODAY, now: NOW,
+      pick: (count) => {
+        asked.push(count);
+        return 0;
+      },
+    });
+    assert.deepEqual(asked, [3]);
+    assert.equal(state.bookings[EASTER].name, 'Ola Nordmann');
+  });
+
+  test('an ordinary week booked does not count as a win', () => {
+    const state = bookWithEaster(...people);
+    book(state, as('Ola Nordmann', AUTUMN));
+    assert.deepEqual(standingBehind(state, EASTER, NOW), []);
+  });
+
+  test('left to itself, the draw gives the others the same chance', () => {
+    const wins = [0, 0, 0];
+    for (let round = 0; round < 6000; round += 1) {
+      const state = afterWinter('Ola Nordmann');
+      wins[drawWinner(state, { week: EASTER, today: TODAY, now: NOW }).winner] += 1;
+    }
+    // 3000 each on average. Outside 2600 to 3400 is more than ten standard deviations away.
+    assert.equal(wins[0], 0);
+    for (const count of wins.slice(1)) assert.ok(count > 2600 && count < 3400, `wins were ${wins}`);
+  });
+});
+
+describe('names and PINs', () => {
+  test('the first to use a name chooses its PIN, and keeps the name as written', () => {
+    const state = emptyState();
+    assert.deepEqual(claimName(state, { name: '  Ola  Nordmann ', pin: '1234' }), { ok: true, name: 'Ola Nordmann', isNew: true });
+    assert.equal(state.people['ola nordmann'].name, 'Ola Nordmann');
+    assert.match(state.people['ola nordmann'].pin, /^scrypt\$[\w-]+\$[\w-]+$/);
+    assert.ok(isKnown(state, 'OLA NORDMANN'));
+    assert.deepEqual(people(state), [{ key: 'ola nordmann', name: 'Ola Nordmann' }]);
+  });
+
+  test('a name in use needs its PIN', () => {
+    const state = emptyState();
+    claimName(state, { name: 'Ola Nordmann', pin: '1234' });
+    assert.deepEqual(claimName(state, { name: 'ola nordmann', pin: '1234' }), { ok: true, name: 'Ola Nordmann', isNew: false });
+    refused(state, claimName, { name: 'Ola Nordmann', pin: '4321' }, /Feil PIN for Ola Nordmann/, 403);
+  });
+
+  test('a PIN is 4 to 6 digits, and a name is needed', () => {
+    const state = emptyState();
+    for (const pin of ['', '123', '1234567', 'abcd', '12 34']) {
+      refused(state, claimName, { name: 'Ola Nordmann', pin }, /4 til 6 sifre/, 400);
+    }
+    refused(state, claimName, { name: ' ', pin: '1234' }, /Skriv navnet ditt/, 400);
+  });
+
+  test('the office manager frees a name, and the next to use it chooses a new PIN', () => {
+    const state = emptyState();
+    claimName(state, { name: 'Ola Nordmann', pin: '1234' });
+    book(state, as('Ola Nordmann', AUTUMN));
+    assert.equal(resetPin(state, { name: 'ola nordmann' }).ok, true);
+    assert.equal(isKnown(state, 'Ola Nordmann'), false);
+    assert.equal(state.bookings[AUTUMN].name, 'Ola Nordmann', 'the booking stays');
+    assert.equal(claimName(state, { name: 'Ola Nordmann', pin: '5678' }).isNew, true);
+    refused(state, resetPin, { name: 'Ingen' }, /ikke i bruk/, 404);
+  });
+
+  test('a PIN is kept as a salted hash, and checked against it', () => {
+    const stored = hashPin('1234');
+    assert.notEqual(stored, hashPin('1234'), 'each hash has its own salt');
+    assert.ok(checkPin('1234', stored));
+    assert.equal(checkPin('1235', stored), false);
+    assert.equal(checkPin('1234', 'tull'), false);
+    assert.ok(isPin('123456'));
+    assert.equal(isPin('12345a'), false);
+  });
+
+  test('a signed text gives back its value, and anything else gives nothing', () => {
+    const signed = sign('nøkkel', 'navn:Ola N. Nordmann');
+    assert.equal(unsign('nøkkel', signed), 'navn:Ola N. Nordmann');
+    assert.equal(unsign('en annen', signed), null);
+    assert.equal(unsign('nøkkel', signed.replace('Ola', 'Per')), null);
+    assert.equal(unsign('nøkkel', 'uten-signatur'), null);
   });
 });
 

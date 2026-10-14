@@ -336,6 +336,14 @@ a:active { color: var(--cabin); }
 
 .field-row .button { flex-grow: 1; }
 
+.field-row .pin {
+  flex-basis: 6rem;
+  flex-grow: 1;
+  min-inline-size: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -495,6 +503,23 @@ a:active { color: var(--cabin); }
   column-gap: 0.75rem;
 }
 
+.people-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  list-style: none;
+}
+
+.people-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 0.5rem;
+  border-block-start: 1px solid var(--line);
+}
+
 .draw-list-title strong { font-size: 1.15rem; }
 .draw-list-title span { color: var(--muted); }
 
@@ -641,6 +666,24 @@ a:active { color: var(--cabin); }
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+}
+
+.ticket.is-behind:not(.is-lit, .is-winner) {
+  border-inline-start-style: solid;
+  border-inline-start-color: var(--line-strong);
+}
+
+.ticket-note {
+  display: block;
+  font-size: 0.7em;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.draw-rule {
+  max-inline-size: 36rem;
+  margin-inline: auto;
+  color: color-mix(in oklch, var(--snow) 80%, var(--night));
 }
 
 .draw-count {

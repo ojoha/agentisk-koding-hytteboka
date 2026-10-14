@@ -47,4 +47,6 @@ Testene kjører du med `npm test`.
 
 ## Hva den ikke er
 
-Den er ikke ment for ekte bruk. Det er ingen innlogging, så alle kan skrive hvilket som helst navn, og alt ligger i én fil på maskinen. Det som ble antatt på kundens vegne, står i [ANTAKELSER.md](ANTAKELSER.md).
+Den er ikke ment for ekte bruk, og alt ligger i én fil på maskinen. Hver ansatt velger en PIN første gang de skriver navnet sitt, men det er ikke ekte innlogging: fire sifre er en enkel lås, og nøkkelen som signerer informasjonskapslene ligger i `data/nokkel`.
+
+Kontorsjefen kommer inn med en kode. Sett den selv med `KONTORSJEF_KODE=... npm start`. Uten den lages en ny kode hver gang serveren starter, og den skrives ut i terminalen. Det som ble antatt på kundens vegne, står i [ANTAKELSER.md](ANTAKELSER.md).

@@ -14,7 +14,7 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
    Antar: 52 uker, regnet fra uka vi er i. Uka vi er i kan også bookes, så lenge den ikke er over.
 
 4. **Er det en grense for hvor mange uker én person kan ha?**
-   Antar: nei. På vanlige uker er det førstemann til mølla.
+   Ja, etter at du sa fra: én vanlig uke fram i tid per person. Når den er over eller sagt fra seg, kan man booke en ny. Uker man har vunnet i trekning, teller ikke.
 
 5. **Kan man angre?**
    Antar: ja. Den som har en uke, kan si den fra seg, og da er den ledig for alle igjen.
@@ -28,7 +28,7 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
    Antar: du bestemmer, uke for uke, på siden «For kontorsjefen». Påskeuka og uke 8 er lagt inn fra start så det er noe å se på. Vinterferien er uke 8, 9 eller 10 etter hvor i landet dere holder til; uke 8 er en gjetning.
 
 8. **Har alle lik sjanse?**
-   Antar: ja. Ett lodd per person, og den som fikk påsken i fjor, stiller likt med alle andre.
+   Ett lodd per person. Men den som har vunnet en trekning de siste 12 månedene, stiller bakerst: de kan bare vinne hvis ingen andre er påmeldt. Alle andre har lik sjanse. På trekningssiden står det «vant siste 12 mnd» på lappene deres. Har alle de påmeldte vunnet det siste året, stiller alle likt.
 
 9. **Kan én person være med i flere trekninger, og vinne flere?**
    Antar: ja.
@@ -45,7 +45,9 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
 ## Hvem er hvem
 
 13. **Holder det at folk skriver navnet sitt?**
-    Antar: ja, og da følger det at alle kan skrive hvilket som helst navn. Hvem som helst kan altså booke eller avbestille for en annen, og hvem som helst kan åpne «For kontorsjefen» og trekke. Første versjon stoler på at folk ikke gjør det.
+    Nei, etter at du sa fra. Første gang et navn brukes, velger man en PIN på 4 til 6 sifre, og etter det trengs PIN-en for å bruke navnet. Etter 5 feil PIN-er er navnet stengt i 15 minutter. Har noen glemt PIN-en, nullstiller du den på «For kontorsjefen», og neste som skriver navnet, velger en ny. «For kontorsjefen» og trekk-knappen krever en egen kode.
+
+    Bookinger og lodd fra før det kom PIN, tilhører den som først logger inn med navnet. Kommer feil person først, nullstiller du navnet, så kan den rette velge sin egen PIN.
 
 14. **Hva med to som heter det samme?**
     Antar: folk skriver fullt navn. Store og små bokstaver spiller ingen rolle, så «ola nordmann» og «Ola Nordmann» er samme person. To som heter helt likt, blir én person for siden.
@@ -60,4 +62,4 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
 
 ## Ikke med i første versjon
 
-Du har ikke bedt om dette, så det er ikke bygget: innlogging, varsel på e-post, venteliste på vanlige uker, regler for hvem som fikk hva i fjor, historikk over tidligere trekninger, og priser eller betaling.
+Du har ikke bedt om dette, så det er ikke bygget: ekte innlogging (PIN-en er en enkel lås, se nr. 13), varsel på e-post, venteliste på vanlige uker, historikk over tidligere trekninger, og priser eller betaling.
