@@ -87,15 +87,18 @@ function nameForm(typedName) {
   return html`
     <form class="who-are-you" method="post" action="/navn">
       <label for="navn">Hvem er du?</label>
-      <p>Skriv hele navnet ditt, så kan du booke og melde deg på trekninger.</p>
+      <p>Skriv hele navnet ditt og PIN-en din, så kan du booke og melde deg på trekninger.
+        Første gang velger du selv en PIN på 4 til 6 sifre. Den bruker du hver gang etterpå.</p>
       <div class="field-row">
-        <input id="navn" name="navn" required maxlength="60" autocomplete="name" value="${typedName ?? ''}">
+        <input id="navn" name="navn" required maxlength="60" autocomplete="username" value="${typedName ?? ''}">
+        <input class="pin" id="pin" name="pin" type="password" required inputmode="numeric" pattern="[0-9]{4,6}"
+          minlength="4" maxlength="6" autocomplete="current-password" aria-label="PIN" placeholder="PIN">
         <button class="button">Det er meg</button>
       </div>
     </form>`;
 }
 
-export function drawPage({ week, draw, booking, message }) {
+export function drawPage({ week, draw, booking, behind = [], canDraw = false, message }) {
   const names = draw.entries.map((entry) => entry.name);
   const drawn = Boolean(booking);
 
@@ -108,9 +111,10 @@ export function drawPage({ week, draw, booking, message }) {
 
       ${names.length === 0 ? html`<p class="draw-empty">Ingen har meldt seg på ennå.</p>` : ''}
       <ol class="tickets" data-tickets>
-        ${names.map((name) => html`
-          <li class="ticket${drawn && sameName(name, booking.name) ? ' is-winner' : ''}" data-ticket>${name}</li>`)}
+        ${names.map((name, index) => html`
+          <li class="ticket${drawn && sameName(name, booking.name) ? ' is-winner' : ''}${behind.includes(index) ? ' is-behind' : ''}" data-ticket>${name}${behind.includes(index) ? html`<span class="ticket-note">vant siste 12 mnd</span>` : ''}</li>`)}
       </ol>
+      ${behind.length > 0 ? html`<p class="draw-rule">Den som har vunnet en trekning de siste 12 månedene, stiller bakerst og vinner bare hvis ingen andre er med.</p>` : ''}
 
       <section class="winner" data-winner tabindex="-1"${drawn ? '' : html` hidden`}>
         <p class="winner-lead">Hytta går til</p>
@@ -118,7 +122,8 @@ export function drawPage({ week, draw, booking, message }) {
         ${drawn ? html`<p class="winner-when">Trukket ${formatMoment(booking.at)} blant ${countEntered(names.length)}.</p>` : ''}
       </section>
 
-      ${!drawn && names.length > 0 ? html`
+      ${!drawn && names.length > 0 && !canDraw ? html`<p class="draw-count">${names.length} lodd i hatten. Kontorsjefen trekker vinneren.</p>` : ''}
+      ${!drawn && names.length > 0 && canDraw ? html`
         <form class="draw-form" method="post" action="/trekning/${week}/trekk" data-draw-form>
           <p class="draw-count">${names.length} lodd i hatten</p>
           <label class="ready">
@@ -133,7 +138,23 @@ export function drawPage({ week, draw, booking, message }) {
   `);
 }
 
-export function managerPage({ draws, freeWeeks, name, message }) {
+export function managerLoginPage({ name, message }) {
+  return page({ title: 'For kontorsjefen', name }, html`
+    <h1>For kontorsjefen</h1>
+    <p class="lead">Her velger kontorsjefen hvilke uker det skal trekkes lodd om, og trekker vinneren.</p>
+    ${alert(message)}
+
+    <section class="panel">
+      <form class="fields" method="post" action="/kontorsjef/inn">
+        <label for="kode">Koden til kontorsjefen</label>
+        <input id="kode" name="kode" type="password" required autocomplete="current-password">
+        <button class="button">Gå inn</button>
+      </form>
+    </section>
+  `);
+}
+
+export function managerPage({ draws, freeWeeks, people = [], name, message }) {
   return page({ title: 'For kontorsjefen', name }, html`
     <h1>For kontorsjefen</h1>
     <p class="lead">Her velger du hvilke uker det skal trekkes lodd om, og åpner trekningen når kontoret er samlet.</p>
@@ -158,6 +179,22 @@ export function managerPage({ draws, freeWeeks, name, message }) {
         <input id="ukenavn" name="navn" maxlength="40" placeholder="Høstferie">
         <button class="button">Trekk lodd om denne uka</button>
       </form>
+    </section>
+
+    <section class="panel">
+      <h2>Navn og PIN</h2>
+      <p>Har noen glemt PIN-en sin, nullstiller du den her. Neste som skriver navnet, velger en ny PIN.
+        Bookinger og lodd står der fortsatt.</p>
+      ${people.length === 0 ? html`<p>Ingen har valgt PIN ennå.</p>` : html`
+        <ul class="people-list">
+          ${people.map((person) => html`
+            <li>
+              <span class="person">${person.name}</span>
+              <form method="post" action="/kontorsjef/personer/${encodeURIComponent(person.key)}/nullstill">
+                <button class="button button--quiet">Nullstill PIN</button>
+              </form>
+            </li>`)}
+        </ul>`}
     </section>
   `);
 }

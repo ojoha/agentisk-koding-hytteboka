@@ -11,6 +11,8 @@ export function openStore(file, first) {
   if (existsSync(file)) {
     // A file that cannot be read stops the server here, rather than being replaced by an empty book.
     state = JSON.parse(readFileSync(file, 'utf8'));
+    // A book from before there were PINs.
+    state.people ??= {};
   } else {
     state = first();
     write(file, state);

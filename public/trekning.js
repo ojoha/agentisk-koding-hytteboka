@@ -29,10 +29,18 @@ form?.addEventListener('submit', async (event) => {
 
   // The tickets are written again from the answer, so someone who entered after this page was opened is there.
   const list = stage.querySelector('[data-tickets]');
-  const tickets = drawn.entries.map((name) => {
+  // Those who won in the last 12 months are marked, as the page marks them.
+  const tickets = drawn.entries.map((name, index) => {
     const ticket = document.createElement('li');
     ticket.className = 'ticket';
     ticket.textContent = name;
+    if (drawn.behind?.includes(index)) {
+      ticket.classList.add('is-behind');
+      const note = document.createElement('span');
+      note.className = 'ticket-note';
+      note.textContent = 'vant siste 12 mnd';
+      ticket.append(note);
+    }
     return ticket;
   });
   list.replaceChildren(...tickets);

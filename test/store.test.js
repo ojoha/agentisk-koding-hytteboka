@@ -62,6 +62,12 @@ test('a rule that changes something and then says no has changed nothing', () =>
   assert.deepEqual(store.state, emptyState());
 });
 
+test('a book from before there were PINs is opened with nobody in it', () => {
+  const file = newFile();
+  openStore(file, () => ({ bookings: {}, draws: {} }));
+  assert.deepEqual(openStore(file, emptyState).state.people, {});
+});
+
 test('a file that cannot be read stops the start, and is left alone', () => {
   const file = newFile();
   openStore(file, emptyState);
