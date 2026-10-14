@@ -1,9 +1,14 @@
-// A week on the cabin is an ISO week, Monday to Sunday, written "2027-W12".
+// A week on the cabin runs from Friday to Friday. Those who leave are out by noon, and those who
+// come arrive after work. A week is named after the ISO week its first Friday is in, written
+// "2027-W12": week 12 of 2027 runs from Friday 26 March to Friday 2 April.
 // Written that way, weeks sort as text: "2026-W53" < "2027-W01".
 //
 // Every date here is a calendar day held as midnight UTC, so summer time never moves one.
 
 const DAY = 86_400_000;
+const HOUR = 3_600_000;
+// From the Monday of an ISO week to the moment the cabin week named after it starts: Friday at noon.
+const FRIDAY_NOON = 4 * DAY + 12 * HOUR;
 const WEEK_ID = /^(\d{4})-W(\d{2})$/;
 
 const MONTHS = [
@@ -11,11 +16,15 @@ const MONTHS = [
   'juli', 'august', 'september', 'oktober', 'november', 'desember',
 ];
 
-const osloDay = new Intl.DateTimeFormat('en-CA', {
+const osloClock = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Oslo',
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
 });
 
 const osloMoment = new Intl.DateTimeFormat('nb-NO', {
@@ -48,6 +57,12 @@ export function mondayOf(id) {
   return weekIdOf(monday) === id ? monday : null;
 }
 
+/** The Friday a week starts on, and the Friday it ends on. */
+export function fridaysOf(id) {
+  const friday = new Date(mondayOf(id).getTime() + 4 * DAY);
+  return { from: friday, to: new Date(friday.getTime() + 7 * DAY) };
+}
+
 export function isWeekId(id) {
   return typeof id === 'string' && mondayOf(id) !== null;
 }
@@ -64,10 +79,12 @@ export function weeksFrom(id, count) {
   return Array.from({ length: count }, (_, index) => addWeeks(id, index));
 }
 
-/** The week it is in Norway at this moment. */
+/** The week the cabin is in at this moment, by the clock in Norway. A week ends on Friday at noon. */
 export function currentWeek(now = new Date()) {
-  const parts = Object.fromEntries(osloDay.formatToParts(now).map((part) => [part.type, part.value]));
-  return weekIdOf(new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day))));
+  const parts = Object.fromEntries(osloClock.formatToParts(now).map((part) => [part.type, Number(part.value)]));
+  const clock = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  // Moved back to the Monday of its ISO week, Friday at noon starts that week's cabin week.
+  return weekIdOf(new Date(clock - FRIDAY_NOON));
 }
 
 export function easterSunday(year) {
@@ -89,25 +106,31 @@ export function easterSunday(year) {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-/** "22.–28. mars 2027", or without the year where a heading above already says it. */
+/** "fre. 26. mars – fre. 2. april 2027", or without the year where a heading above already says it. */
 export function formatRange(id, { year = true } = {}) {
-  const from = mondayOf(id);
-  const to = new Date(from.getTime() + 6 * DAY);
-  const day = (date) => `${date.getUTCDate()}.`;
-  const month = (date) => MONTHS[date.getUTCMonth()];
+  const { from, to } = fridaysOf(id);
   const sameYear = from.getUTCFullYear() === to.getUTCFullYear();
-  const closing = year ? ` ${to.getUTCFullYear()}` : '';
-
-  if (from.getUTCMonth() === to.getUTCMonth()) return `${day(from)}–${day(to)} ${month(to)}${closing}`;
   const opening = year && !sameYear ? ` ${from.getUTCFullYear()}` : '';
-  return `${day(from)} ${month(from)}${opening} – ${day(to)} ${month(to)}${closing}`;
+  const closing = year ? ` ${to.getUTCFullYear()}` : '';
+  if (from.getUTCMonth() === to.getUTCMonth()) return `fre. ${from.getUTCDate()}. – fre. ${formatDay(to)}${closing}`;
+  return `fre. ${formatDay(from)}${opening} – fre. ${formatDay(to)}${closing}`;
 }
 
-/** The month a week is listed under: the one most of its days fall in. */
+/** "26. mars". */
+export function formatDay(date) {
+  return `${date.getUTCDate()}. ${MONTHS[date.getUTCMonth()]}`;
+}
+
+/** "2027-03-26", for a <time> element. */
+export function isoDay(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+/** The month a week is listed under: the one most of its nights fall in, which is that of its Monday. */
 export function monthOf(id) {
-  const thursday = new Date(mondayOf(id).getTime() + 3 * DAY);
-  const name = MONTHS[thursday.getUTCMonth()];
-  return `${name[0].toUpperCase()}${name.slice(1)} ${thursday.getUTCFullYear()}`;
+  const monday = new Date(fridaysOf(id).from.getTime() + 3 * DAY);
+  const name = MONTHS[monday.getUTCMonth()];
+  return `${name[0].toUpperCase()}${name.slice(1)} ${monday.getUTCFullYear()}`;
 }
 
 /** "11. oktober 2026 kl. 15:42", in Norwegian time, from a stored moment. */

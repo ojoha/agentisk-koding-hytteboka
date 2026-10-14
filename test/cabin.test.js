@@ -5,7 +5,7 @@ import {
   unmarkDraw, withdraw,
 } from '../src/cabin.js';
 
-// The week the tests happen in: 12 to 18 October 2026.
+// The week the tests happen in: Friday 16 to Friday 23 October 2026.
 const TODAY = '2026-W42';
 const AUTUMN = '2026-W45';
 const EASTER = '2027-W12';
@@ -286,8 +286,8 @@ describe('the book as it is shown', () => {
   });
 
   test('a new book leaves out an Easter that is more than 52 weeks away', () => {
-    // The week after Easter 2027. Easter 2028 is in week 15, 54 weeks later.
-    const state = firstState(new Date('2027-03-29T12:00:00Z'));
+    // The week after Easter 2027, from Friday 2 April. Easter 2028 is in week 15, 54 weeks later.
+    const state = firstState(new Date('2027-04-02T12:00:00Z'));
     assert.deepEqual(Object.keys(state.draws), ['2028-W08']);
   });
 });

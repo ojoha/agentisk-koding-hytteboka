@@ -5,7 +5,9 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
 ## Uker og booking
 
 1. **Hva er «en uke» på hytta?**
-   Antar: mandag til søndag, altså vanlige ukenumre (uke 8, uke 12). Når på dagen man bytter, avtaler folk seg imellom.
+   Fredag til fredag, etter at du sa fra. De som reiser, er ute klokka tolv fredag, og de som kommer, kommer etter jobb. Klokka tolv fredag er uka over, og neste uke er «denne uka».
+
+   Antar: uka har nummeret til fredagen den starter på. Uke 42 i 2026 er fredag 16. til fredag 23. oktober. Uker som alt var booket, beholder nummeret og flytter dermed til fredagen i den uka.
 
 2. **Lånes hytta bare ut for hele uker?**
    Antar: ja. Én booking er hele hytta i hele uka. Ingen helger eller enkeltdøgn.
@@ -26,6 +28,8 @@ Gro var ikke å få tak i før første versjon ble bygget. Her er det jeg ville 
 
 7. **Hvilke uker skal det trekkes lodd om, og hvem bestemmer det?**
    Antar: du bestemmer, uke for uke, på siden «For kontorsjefen». Påskeuka og uke 8 er lagt inn fra start så det er noe å se på. Vinterferien er uke 8, 9 eller 10 etter hvor i landet dere holder til; uke 8 er en gjetning.
+
+   Med fredag til fredag treffer ingen hytteuke en hel skoleferie. Antar: påskeuka er den som starter langfredag og varer til fredagen etter påske, med påskeaften, påskedag og 2. påskedag. Uka før har palmesøndag og skjærtorsdag. Vinterferie-uka «uke 8» starter fredagen i skolens uke 8, altså på slutten av ferien. Vil dere heller ha uka som starter fredagen før skolens ferieuke, flytter du trekningen på «For kontorsjefen».
 
 8. **Har alle lik sjanse?**
    Antar: ja. Ett lodd per person, og den som fikk påsken i fjor, stiller likt med alle andre.
