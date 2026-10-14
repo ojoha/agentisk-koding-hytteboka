@@ -45,6 +45,8 @@ npm start
 
 Testene kjører du med `npm test`.
 
+Oversikten over hvem som har hytta de neste fire ukene, den Gro sender ut hver fredag, får du med `node scripts/fredagsoversikt.js`. I Claude Code kan du be om «fredagsoversikten», så bruker den skillen i `.claude/skills/fredagsoversikt`.
+
 ## Hva den ikke er
 
 Den er ikke ment for ekte bruk. Det er ingen innlogging, så alle kan skrive hvilket som helst navn, og alt ligger i én fil på maskinen. Det som ble antatt på kundens vegne, står i [ANTAKELSER.md](ANTAKELSER.md).

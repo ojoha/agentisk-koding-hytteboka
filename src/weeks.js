@@ -87,6 +87,14 @@ export function currentWeek(now = new Date()) {
   return weekIdOf(new Date(clock - FRIDAY_NOON));
 }
 
+/** The week that starts on Friday this week, or today when it is Friday, by the calendar in Norway. */
+export function comingWeek(now = new Date()) {
+  const parts = Object.fromEntries(osloClock.formatToParts(now).map((part) => [part.type, Number(part.value)]));
+  const day = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  day.setUTCDate(day.getUTCDate() + ((5 - day.getUTCDay() + 7) % 7));
+  return weekIdOf(day);
+}
+
 export function easterSunday(year) {
   // The anonymous Gregorian algorithm (Meeus, Jones, Butcher).
   const a = year % 19;
