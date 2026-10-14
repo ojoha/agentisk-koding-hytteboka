@@ -2,7 +2,7 @@
 
 import { isEntered, sameName, Uke } from './cabin.js';
 import { html } from './html.js';
-import { formatMoment, formatRange, monthOf, weekNumber } from './weeks.js';
+import { formatDay, formatMoment, formatRange, fridaysOf, isoDay, monthOf, weekNumber } from './weeks.js';
 
 export function calendarPage({ weeks, today, name, message, typedName }) {
   const months = [];
@@ -18,6 +18,7 @@ export function calendarPage({ weeks, today, name, message, typedName }) {
       <div class="hero-text">
         <h1>Når er hytta ledig?</h1>
         <p>Book en ledig uke. Ukene alle vil ha, trekker vi lodd om: meld deg på, så trekkes vinneren mens kontoret ser på.</p>
+        <p>En uke går fra fredag til fredag. De som reiser, er ute klokka tolv, og de som kommer, kommer etter jobb.</p>
       </div>
     </section>
 
@@ -68,10 +69,8 @@ function weekCard({ week, booking, draw }, { name, today }) {
 
   return html`
     <li class="week week--${state}${mine ? ' week--mine' : ''}" id="${week}">
-      <p class="week-when">
-        <strong>Uke ${weekNumber(week)}</strong>
-        <span>${formatRange(week, { year: false })}</span>
-      </p>
+      <p class="week-when"><strong>Uke ${weekNumber(week)}</strong></p>
+      <p class="week-dates">${weekDates(week)}</p>
       ${week === today ? html`<p class="tag">Denne uka</p>` : ''}
       ${draw ? html`<p class="tag tag--draw">${draw.label ? `Trekning · ${draw.label}` : 'Trekning'}</p>` : ''}
       <p class="week-status">${status}</p>
@@ -81,6 +80,14 @@ function weekCard({ week, booking, draw }, { name, today }) {
           ${draw ? html`<a href="/trekning/${week}">Se trekningen</a>` : ''}
         </div>` : ''}
     </li>`;
+}
+
+/** "fredag 16. oktober" over "til fredag 23. oktober", each a date a machine can read too. */
+function weekDates(week) {
+  const { from, to } = fridaysOf(week);
+  return html`
+    <time datetime="${isoDay(from)}">fredag ${formatDay(from)}</time>
+    <span>til <time datetime="${isoDay(to)}">fredag ${formatDay(to)}</time></span>`;
 }
 
 function nameForm(typedName) {

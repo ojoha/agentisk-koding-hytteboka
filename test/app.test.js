@@ -1,5 +1,5 @@
 // The server as people meet it: every request here goes over HTTP to a server on a port of its own,
-// with a book in a folder of its own. The day is Wednesday 14 October 2026, in week 42.
+// with a book in a folder of its own. The day is Wednesday 21 October 2026, in week 42 (16 to 23 October).
 
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -11,7 +11,7 @@ import { createApp } from '../src/app.js';
 import { firstState } from '../src/cabin.js';
 import { openStore } from '../src/store.js';
 
-const NOW = new Date('2026-10-14T10:00:00Z');
+const NOW = new Date('2026-10-21T10:00:00Z');
 const AUTUMN = '2026-W45';
 const EASTER = '2027-W12';
 
@@ -80,8 +80,8 @@ describe('the calendar', () => {
     assert.match(response.headers.get('content-type'), /text\/html/);
     assert.equal(page.match(/<li class="week /g).length, 52);
     assert.match(page, /<h2>Oktober 2026<\/h2>/);
-    assert.match(await card(visitor, '2026-W42'), /^Uke 42 12\.–18\. oktober Denne uka Ledig$/);
-    assert.match(await card(visitor, EASTER), /Uke 12 22\.–28\. mars Trekning · Påske Ingen påmeldt ennå Se trekningen/);
+    assert.match(await card(visitor, '2026-W42'), /^Uke 42 fredag 16\. oktober til fredag 23\. oktober Denne uka Ledig$/);
+    assert.match(await card(visitor, EASTER), /Uke 12 fredag 26\. mars til fredag 2\. april Trekning · Påske Ingen påmeldt ennå Se trekningen/);
     assert.match(await card(visitor, '2027-W08'), /Trekning · Vinterferie/);
   });
 
@@ -123,9 +123,9 @@ describe('booking', () => {
     assert.equal(response.status, 303);
     assert.equal(response.headers.get('location'), `/#${AUTUMN}`);
 
-    assert.equal(await card(ola, AUTUMN), 'Uke 45 2.–8. november Du har hytta Si fra deg uka');
-    assert.equal(await card(kari, AUTUMN), 'Uke 45 2.–8. november Booket av Ola Nordmann');
-    assert.equal(await card(visitor, AUTUMN), 'Uke 45 2.–8. november Booket av Ola Nordmann');
+    assert.equal(await card(ola, AUTUMN), 'Uke 45 fredag 6. november til fredag 13. november Du har hytta Si fra deg uka');
+    assert.equal(await card(kari, AUTUMN), 'Uke 45 fredag 6. november til fredag 13. november Booket av Ola Nordmann');
+    assert.equal(await card(visitor, AUTUMN), 'Uke 45 fredag 6. november til fredag 13. november Booket av Ola Nordmann');
     assert.equal(book().bookings[AUTUMN].name, 'Ola Nordmann');
   });
 
@@ -196,7 +196,7 @@ describe('the draw', () => {
 
     assert.equal(response.status, 200);
     assert.match(page, /<h1>Påske<\/h1>/);
-    assert.match(page, /Uke 12 · 22\.–28\. mars 2027/);
+    assert.match(page, /Uke 12 · fre\. 26\. mars – fre\. 2\. april 2027/);
     assert.deepEqual(
       [...page.matchAll(/<li class="ticket" data-ticket>([^<]*)<\/li>/g)].map((found) => found[1]),
       ['Ola Nordmann', 'Kari Hansen', 'Per Olsen'],
@@ -223,7 +223,7 @@ describe('the draw', () => {
 
     const page = await (await visitor.get(`/trekning/${EASTER}`)).text();
     assert.match(page, new RegExp(`<p class="winner-name" data-winner-name>${winner}</p>`));
-    assert.match(page, /Trukket 14\. oktober 2026 kl\. 12[:.]00 blant 3 påmeldte\./);
+    assert.match(page, /Trukket 21\. oktober 2026 kl\. 12[:.]00 blant 3 påmeldte\./);
     assert.match(page, new RegExp(`<li class="ticket is-winner" data-ticket>${winner}</li>`));
     assert.doesNotMatch(page, /Trekk vinneren/);
 
@@ -279,10 +279,10 @@ describe('for the office manager', () => {
     await kari.post(`/uker/${EASTER}/meld-pa`);
     const page = await (await visitor.get('/kontorsjef')).text();
 
-    assert.match(page, /<strong>Påske<\/strong>\s*<span>Uke 12 · 22\.–28\. mars 2027<\/span>/);
+    assert.match(page, /<strong>Påske<\/strong>\s*<span>Uke 12 · fre\. 26\. mars – fre\. 2\. april 2027<\/span>/);
     assert.match(page, /2 påmeldte: <span class="person">Ola Nordmann, Kari Hansen<\/span>/);
     assert.match(page, new RegExp(`href="/trekning/${EASTER}">Åpne trekningen`));
-    assert.match(page, /<option value="2026-W45">Uke 45 · 2\.–8\. november 2026<\/option>/);
+    assert.match(page, /<option value="2026-W45">Uke 45 · fre\. 6\. – fre\. 13\. november 2026<\/option>/);
     assert.doesNotMatch(page, /<option value="2027-W12">/, 'a week that is set up is not offered again');
   });
 

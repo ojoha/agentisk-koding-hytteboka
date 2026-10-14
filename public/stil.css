@@ -430,7 +430,17 @@ a:active { color: var(--cabin); }
   font-variant-numeric: tabular-nums;
 }
 
-.week-when span { color: var(--muted); }
+.week-dates {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.week-dates span {
+  font-weight: 400;
+  color: var(--muted);
+}
 
 .week--free .week-status,
 .week--mine .week-status {
